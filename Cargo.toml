@@ -1,0 +1,13 @@
+[package]
+name = "wololo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.7"
+wake-on-lan = "0.2"
+argh = "0.1"
+tokio = { version = "1", features = ["full"] }
+serde = "1"
+thiserror = "2"
+maud = { version = "0.26", features = ["axum"] }
