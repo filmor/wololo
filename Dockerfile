@@ -32,9 +32,9 @@ COPY --from=builder /etc/group /etc/group
 WORKDIR /app
 
 # Copy our build
-COPY --from=builder /app/target/release/${APP} ./
+COPY --from=builder /app/target/release/${APP} ./app
 
 # Use an unprivileged user.
 USER ${APP}:${APP}
 
-CMD ["/app/${APP}"]
+CMD ["/app/app"]
