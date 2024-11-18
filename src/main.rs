@@ -1,12 +1,14 @@
 mod error;
 mod mac_address;
+mod providers;
 mod routes;
 
-use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use argh::FromArgs;
 use error::Error;
 use mac_address::MacAddress;
+use providers::Provider;
 
 #[derive(FromArgs)]
 /// Wake-On-Lan webservice
@@ -24,10 +26,12 @@ struct Wololo {
     machine: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct AppState {
-    machines: BTreeMap<String, MacAddress>,
+    providers: Arc<[Box<dyn Provider>]>,
 }
+
+unsafe impl Send for AppState {}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -35,22 +39,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let bind = format!("{}:{}", wololo.host, wololo.port);
 
-    let mut machines = BTreeMap::new();
-    for machine in wololo.machine {
-        let mut parts = machine.splitn(2, '=');
-        let name = parts
-            .next()
-            .ok_or_else(|| Error::FailedToParseMachine(machine.clone()))?;
-        let mac_address = parts
-            .next()
-            .ok_or_else(|| Error::FailedToParseMachine(machine.clone()))?;
+    let mut providers: Vec<Box<dyn Provider>> = Vec::new();
 
-        let mac_address = MacAddress::parse(mac_address)?;
-
-        machines.insert(name.to_string(), mac_address);
+    if !wololo.machine.is_empty() {
+        let provider = providers::StaticProvider::from_args(wololo.machine.clone())?;
+        providers.push(Box::new(provider));
     }
 
-    let state = AppState { machines };
+    let state = AppState { providers: providers.into() };
 
     // build our application with a single route
     let app = routes::routes(state);

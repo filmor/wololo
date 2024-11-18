@@ -18,9 +18,14 @@ pub async fn wake(
     if let Some(form_addr) = wake.mac_address {
         mac_address = Some(MacAddress::parse(&form_addr)?);
     } else if let Some(machine) = wake.machine {
-        if let Some(stored_addr) = app_state.machines.get(&machine) {
-            mac_address = Some(stored_addr.clone());
-        } else {
+        for provider in app_state.providers.iter() {
+            if let Ok(addr) = provider.get_mac_address(&machine) {
+                mac_address = Some(addr);
+                break;
+            }
+        }
+
+        if mac_address.is_none() {
             return Err(Error::UnknownMachine);
         }
     }

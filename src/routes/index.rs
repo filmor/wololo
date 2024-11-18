@@ -5,6 +5,7 @@ use crate::{AppState, MacAddress};
 
 pub async fn index(State(state): State<AppState>) -> Markup {
     html! {
+        link rel="stylesheet" type="text/css" href="/style.css";
         h1 { "WoLolo" }
         table {
             thead {
@@ -15,8 +16,11 @@ pub async fn index(State(state): State<AppState>) -> Markup {
                 }
             }
             tbody {
-                @for (name, mac_address) in &state.machines {
-                    (row(name, mac_address))
+                @for provider in state.providers.into_iter() {
+                    @for name in provider.list_names().unwrap() {
+                        @let mac_address = provider.get_mac_address(&name).unwrap();
+                        (row(&name, &mac_address))
+                    }
                 }
             }
         }

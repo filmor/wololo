@@ -18,8 +18,14 @@ pub enum Error {
     #[error("unknown machine")]
     UnknownMachine,
 
-    #[error("failed to parse machine: {0}")]
-    FailedToParseMachine(String),
+    #[error("failed to parse machine mapping: {0}")]
+    FailedToParseMachineMapping(String),
+
+    #[error("failed to list names")]
+    FailedToListNames,
+
+    #[error("failed to get mac address")]
+    FailedToGetMacAddress,
 }
 
 impl IntoResponse for Error {
