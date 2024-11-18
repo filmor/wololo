@@ -1,13 +1,29 @@
 use axum::extract::State;
 use maud::{html, Markup};
 
+use super::Base;
 use crate::{AppState, MacAddress};
 
 pub async fn index(State(state): State<AppState>) -> Markup {
     html! {
-        link rel="stylesheet" type="text/css" href="/style.css";
-        h1 { "WoLolo" }
-        table {
+        (Base)
+        body {
+            div class="pure-g center-column" {
+                div class="pure-u-1" {
+                    h1 { "WoLolo" }
+                    p { "Click the 'Wake' button to send a magic packet to a machine." }
+                }
+                div class="pure-u-1" {
+                    (table(&state))
+                }
+            }
+        }
+    }
+}
+
+fn table(state: &AppState) -> Markup {
+    html! {
+        table class="pure-table pure-table-horizontal pure-table-striped" {
             thead {
                 tr {
                     th { "Machine" }
@@ -31,11 +47,11 @@ fn row(name: &str, mac_address: &MacAddress) -> Markup {
     html! {
         tr {
             td { (name) }
-            td { (mac_address) }
+            td { code { (mac_address) } }
             td {
-                form method="post" action="/wake" {
-                    input type="hidden" name="machine" value=(name);
-                    input type="submit" value="Wake";
+                form method="post" action="/wake" style="margin: auto" {
+                    input type="hidden" name="mac_address" value=(mac_address);
+                    input type="submit" class="pure-button pure-button-primary" value="Wake";
                 }
             }
         }

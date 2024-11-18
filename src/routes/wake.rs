@@ -1,6 +1,8 @@
 use axum::{extract::State, response::IntoResponse, Form};
+use maud::html;
 use serde::Deserialize;
 
+use super::Base;
 use crate::{AppState, Error, MacAddress};
 
 #[derive(Deserialize, Default)]
@@ -33,5 +35,17 @@ pub async fn wake(
     let mac_address = mac_address.ok_or(Error::InvalidRequest)?;
 
     mac_address.send_magic_packet()?;
-    Ok(format!("Sent magic packet to {}", mac_address).into_response())
+
+    Ok(html!{
+        (Base)
+        meta http-equiv="refresh" content="2; url=/";
+        body {
+            div class="pure-g center-column" {
+                div class="pure-u-1" {
+                    h1 { "WoLolo" }
+                    p { "Sent magic packet to " (mac_address) }
+                }
+            }
+        }
+    })
 }

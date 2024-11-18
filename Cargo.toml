@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = "0.7"
-wake-on-lan = "0.2"
 argh = "0.1"
-tokio = { version = "1", features = ["full"] }
+axum = "0.7"
+axum-embed = "0.1"
+maud = { version = "0.26", features = ["axum"] }
+rust-embed = "8"
 serde = "1"
 thiserror = "2"
-maud = { version = "0.26", features = ["axum"] }
+tokio = { version = "1", features = ["full"] }
+wake-on-lan = "0.2"
