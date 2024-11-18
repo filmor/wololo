@@ -25,12 +25,13 @@ impl StaticProvider {
     }
 }
 
+#[async_trait::async_trait]
 impl Provider for StaticProvider {
-    fn list_names(&self) -> Result<Vec<String>, Error> {
+    async fn list_names(&self) -> Result<Vec<String>, Error> {
         Ok(self.0.keys().cloned().collect())
     }
 
-    fn get_mac_address(&self, name: &str) -> Result<MacAddress, Error> {
+    async fn get_mac_address(&self, name: &str) -> Result<MacAddress, Error> {
         self.0
             .get(name)
             .cloned()

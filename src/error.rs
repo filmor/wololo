@@ -26,6 +26,12 @@ pub enum Error {
 
     #[error("failed to get mac address")]
     FailedToGetMacAddress,
+
+    #[error("error during http request")]
+    Reqwest(#[from] reqwest::Error),
+
+    #[error("failed to parse host info")]
+    XmlParseError(#[from] quick_xml::DeError),
 }
 
 impl IntoResponse for Error {

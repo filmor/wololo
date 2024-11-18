@@ -21,7 +21,7 @@ pub async fn wake(
         mac_address = Some(MacAddress::parse(&form_addr)?);
     } else if let Some(machine) = wake.machine {
         for provider in app_state.providers.iter() {
-            if let Ok(addr) = provider.get_mac_address(&machine) {
+            if let Ok(addr) = provider.get_mac_address(&machine).await {
                 mac_address = Some(addr);
                 break;
             }
