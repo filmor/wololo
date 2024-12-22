@@ -12,7 +12,7 @@ pub enum Error {
     #[error("invalid request")]
     InvalidRequest,
 
-    #[error("failed to send magic packet")]
+    #[error("failed to send magic packet: {0}")]
     WakeOnLan(#[from] std::io::Error),
 
     #[error("unknown machine")]
@@ -27,10 +27,10 @@ pub enum Error {
     #[error("failed to get mac address")]
     FailedToGetMacAddress,
 
-    #[error("error during http request")]
+    #[error("error during http request: {0}")]
     Reqwest(#[from] reqwest::Error),
 
-    #[error("failed to parse host info")]
+    #[error("failed to parse host info: {0}")]
     XmlParseError(#[from] quick_xml::DeError),
 }
 
