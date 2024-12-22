@@ -81,8 +81,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         providers: providers.into(),
     };
 
-    log::info!("Available machines: {:?}", state.get_hosts().await);
-
     // build our application with a single route
     let app = routes::routes(state);
 
