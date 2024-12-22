@@ -31,9 +31,14 @@ impl FritzBoxProvider {
         if cached_hosts.timestamp.elapsed() > REFRESH_INTERVAL {
             drop(cached_hosts);
 
-            if let Ok(new_hosts) = get_hosts(&self.url).await {
-                let mut cached_hosts = self.cached_hosts.write().await;
-                *cached_hosts = CachedHosts::new(new_hosts.into_iter());
+            match get_hosts(&self.url).await {
+                Ok(new_hosts) => {
+                    let mut cached_hosts = self.cached_hosts.write().await;
+                    *cached_hosts = CachedHosts::new(new_hosts.into_iter());
+                }
+                Err(e) => {
+                    log::error!("Failed to fetch hosts from FritzBox: {}", e);
+                }
             }
         }
 
