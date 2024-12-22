@@ -26,6 +26,8 @@ RUN cargo build --release --bin ${APP}
 FROM gcr.io/distroless/cc
 ARG APP
 
+ENV RUST_LOG=info
+
 WORKDIR /app
 
 # Copy our build
