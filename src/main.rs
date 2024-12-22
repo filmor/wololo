@@ -9,6 +9,7 @@ use argh::FromArgs;
 use error::Error;
 use mac_address::MacAddress;
 use providers::{FritzBoxProvider, Provider, StaticProvider};
+use tokio::signal;
 
 #[derive(FromArgs)]
 /// Wake-On-Lan webservice
@@ -88,7 +89,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     log::info!("Listening on: {}", bind);
     let listener = tokio::net::TcpListener::bind(&bind).await?;
 
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
 
     Ok(())
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
