@@ -27,7 +27,6 @@ impl FritzBoxProvider {
 
     async fn get_cached_hosts(&self) -> BTreeMap<String, MacAddress> {
         let cached_hosts = self.cached_hosts.read().await;
-        let hosts = cached_hosts.hosts.clone();
         if cached_hosts.timestamp.elapsed() > REFRESH_INTERVAL {
             drop(cached_hosts);
 
@@ -42,7 +41,8 @@ impl FritzBoxProvider {
             }
         }
 
-        hosts
+        let cached_hosts = self.cached_hosts.read().await;
+        cached_hosts.hosts.clone()
     }
 }
 
