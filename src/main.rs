@@ -40,19 +40,6 @@ struct AppState {
     providers: Arc<[Box<dyn Provider>]>,
 }
 
-impl AppState {
-    async fn get_hosts(&self) -> Vec<String> {
-        let mut hosts = Vec::new();
-        for provider in self.providers.iter() {
-            if let Ok(names) = provider.list_names().await {
-                hosts.extend(names);
-            }
-        }
-
-        hosts
-    }
-}
-
 unsafe impl Send for AppState {}
 
 #[tokio::main]
