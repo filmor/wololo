@@ -6,12 +6,13 @@ edition = "2021"
 [dependencies]
 argh = "0.1"
 async-trait = "0.1"
-axum = "0.7"
+axum = "0.8"
 axum-embed = "0.1"
 env_logger = "0.11"
 futures = "0.3"
 log = "0.4"
-maud = { version = "0.26", features = ["axum"] }
+# maud = { version = "0.26", features = ["axum"] }
+maud = { git = "https://github.com/filmor/maud.git", branch = "axum-0.8", features = ["axum"] }
 quick-xml = { version = "0.37", features = ["serialize"] }
 reqwest = "0.12"
 rust-embed = "8"
