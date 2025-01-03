@@ -122,7 +122,7 @@ async fn get_hosts(fritzbox_url: &str) -> Result<Vec<HostInfo>, Error> {
 
     let host_infos: Vec<_> = stream::iter(0..total_hosts)
         .map(|index| get_host_info(&client, &url, index))
-        .buffer_unordered(4)
+        .buffer_unordered(16)
         .filter_map(|result| async { result.ok() })
         .collect()
         .await;
@@ -150,6 +150,8 @@ struct HostInfo {
     mac_address: String,
     #[serde(rename = "NewHostName")]
     host_name: String,
+    // #[serde(rename = "NewIPAddress")]
+    // ip_address: String,
     // #[serde(rename = "NewInterfaceType")]
     // interface_type: String,
     #[serde(rename = "NewActive")]
@@ -182,6 +184,7 @@ async fn get_host_info(client: &Client, url: &str, index: u32) -> Result<HostInf
         .await?;
 
     let response_text = response.text().await?;
+    log::debug!("Response: {}", response_text);
     Ok(from_str::<Envelope>(&response_text)?.body.response)
 }
 

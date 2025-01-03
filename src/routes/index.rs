@@ -33,7 +33,9 @@ async fn table(state: &AppState) -> Result<Markup, Error> {
             }
             tbody {
                 @for provider in state.providers.into_iter() {
-                    @for name in provider.list_names().await? {
+                    @let mut names = provider.list_names().await?;
+                    @let _ = names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                    @for name in names {
                         @let mac_address = provider.get_mac_address(&name).await?;
                         (row(&name, &mac_address))
                     }
