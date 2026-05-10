@@ -31,7 +31,7 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
 
     #[error("failed to parse host info: {0}")]
-    XmlParseError(#[from] quick_xml::DeError),
+    Xml(#[from] quick_xml::DeError),
 }
 
 impl IntoResponse for Error {

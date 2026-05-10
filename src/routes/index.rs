@@ -2,7 +2,7 @@ use axum::extract::State;
 use maud::{html, Markup};
 
 use super::Base;
-use crate::{Error, AppState, MacAddress};
+use crate::{AppState, Error, MacAddress, providers::ProviderExt};
 
 pub async fn index(State(state): State<AppState>) -> Result<Markup, Error> {
     Ok(html! {
@@ -32,9 +32,8 @@ async fn table(state: &AppState) -> Result<Markup, Error> {
                 }
             }
             tbody {
-                @for provider in state.providers.into_iter() {
-                    @let mut names = provider.list_names().await?;
-                    @let _ = names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                @for provider in state.providers.iter() {
+                    @let names = provider.list_names_sorted().await?;
                     @for name in names {
                         @let mac_address = provider.get_mac_address(&name).await?;
                         (row(&name, &mac_address))
