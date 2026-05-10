@@ -57,6 +57,7 @@ impl CachedHosts {
             timestamp: Instant::now(),
             hosts: hosts
                 .filter_map(|host| {
+                    // TODO: Do not filter active hosts but mark them instead
                     if host.active {
                         return None;
                     }
