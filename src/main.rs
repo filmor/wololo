@@ -82,8 +82,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build();
 
     // Keep the existing command-line interface while using Topcoat's server.
-    std::env::set_var("HOST", wololo.host);
-    std::env::set_var("PORT", wololo.port.to_string());
+    unsafe {
+        std::env::set_var("HOST", wololo.host);
+        std::env::set_var("PORT", wololo.port.to_string());
+    }
     topcoat::start(app).await?;
 
     Ok(())
