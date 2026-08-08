@@ -77,6 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .assets(assets)
         .page(routes::index::index)
         .page(routes::wake::wake)
+        .discover_routes()
         .layout(routes::util::base)
         .build();
 

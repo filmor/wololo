@@ -1,11 +1,15 @@
 use super::Provider;
 use crate::{Error, MacAddress};
-use futures::{stream, StreamExt};
+use futures::{stream, Stream, StreamExt};
 use quick_xml::de::from_str;
 use reqwest::Client;
 use serde::Deserialize;
 use std::{
     collections::BTreeMap,
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
+    },
     time::{Duration, Instant},
 };
 use tokio::sync::RwLock;
@@ -13,36 +17,59 @@ use tokio::sync::RwLock;
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 
 pub struct FritzBoxProvider {
+    inner: Arc<FritzBoxProviderInner>,
+}
+
+struct FritzBoxProviderInner {
     url: String,
     cached_hosts: RwLock<CachedHosts>,
+    refreshing: AtomicBool,
+    revision: AtomicU64,
 }
 
 impl FritzBoxProvider {
     pub fn new(url: String) -> Self {
         Self {
-            url,
-            cached_hosts: RwLock::new(Default::default()),
+            inner: Arc::new(FritzBoxProviderInner {
+                url,
+                cached_hosts: RwLock::new(Default::default()),
+                refreshing: AtomicBool::new(false),
+                revision: AtomicU64::new(0),
+            }),
         }
     }
 
     async fn get_cached_hosts(&self) -> BTreeMap<String, MacAddress> {
-        let cached_hosts = self.cached_hosts.read().await;
-        if cached_hosts.timestamp.elapsed() > REFRESH_INTERVAL {
-            drop(cached_hosts);
+        self.maybe_refresh().await;
+        let cached_hosts = self.inner.cached_hosts.read().await;
+        cached_hosts.hosts.clone()
+    }
 
-            match get_hosts(&self.url).await {
-                Ok(new_hosts) => {
-                    let mut cached_hosts = self.cached_hosts.write().await;
-                    *cached_hosts = CachedHosts::new(new_hosts.into_iter());
-                }
-                Err(e) => {
-                    log::error!("Failed to fetch hosts from FritzBox: {}", e);
-                }
-            }
+    async fn maybe_refresh(&self) {
+        let cached_hosts = self.inner.cached_hosts.read().await;
+        let is_stale = cached_hosts.timestamp.elapsed() > REFRESH_INTERVAL;
+        drop(cached_hosts);
+
+        if !is_stale {
+            return;
         }
 
-        let cached_hosts = self.cached_hosts.read().await;
-        cached_hosts.hosts.clone()
+        if self
+            .inner
+            .refreshing
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
+
+        let inner = Arc::clone(&self.inner);
+        tokio::spawn(async move {
+            if let Err(error) = refresh_hosts(inner.clone()).await {
+                log::error!("Failed to fetch hosts from FritzBox: {}", error);
+            }
+            inner.refreshing.store(false, Ordering::SeqCst);
+        });
     }
 }
 
@@ -52,35 +79,33 @@ struct CachedHosts {
 }
 
 impl CachedHosts {
-    fn new(hosts: impl Iterator<Item = HostInfo>) -> Self {
+    fn new() -> Self {
         Self {
-            timestamp: Instant::now(),
-            hosts: hosts
-                .filter_map(|host| {
-                    // TODO: Do not filter active hosts but mark them instead
-                    if host.active {
-                        return None;
-                    }
+            timestamp: Instant::now() - 2 * REFRESH_INTERVAL,
+            hosts: Default::default(),
+        }
+    }
 
-                    MacAddress::parse(&host.mac_address)
-                        .ok()
-                        .map(|m| (host.host_name, m))
-                })
-                .collect(),
+    fn insert(&mut self, host: HostInfo) {
+        // TODO: Do not filter active hosts but mark them instead
+        if host.active {
+            return;
+        }
+
+        if let Ok(mac_address) = MacAddress::parse(&host.mac_address) {
+            self.hosts.insert(host.host_name, mac_address);
+            self.timestamp = Instant::now();
         }
     }
 }
 
 impl Default for CachedHosts {
     fn default() -> Self {
-        Self {
-            timestamp: Instant::now() - 2 * REFRESH_INTERVAL,
-            hosts: Default::default(),
-        }
+        Self::new()
     }
 }
 
-async fn get_hosts(fritzbox_url: &str) -> Result<Vec<HostInfo>, Error> {
+async fn get_hosts(fritzbox_url: &str) -> Result<impl Stream<Item = HostInfo> + Send, Error> {
     log::info!("Fetching hosts from FritzBox {}", fritzbox_url);
     let client = Client::new();
 
@@ -121,16 +146,29 @@ async fn get_hosts(fritzbox_url: &str) -> Result<Vec<HostInfo>, Error> {
 
     log::info!("Total hosts: {}", total_hosts);
 
-    let host_infos: Vec<_> = stream::iter(0..total_hosts)
-        .map(|index| get_host_info(&client, &url, index))
+    let host_infos = stream::iter(0..total_hosts)
+        .map(move |index| {
+            let client = client.clone();
+            let url = url.clone();
+            async move { get_host_info(&client, &url, index).await }
+        })
         .buffer_unordered(16)
-        .filter_map(|result| async { result.ok() })
-        .collect()
-        .await;
-
-    log::info!("Fetched {} hosts", host_infos.len());
+        .filter_map(|result| async { result.ok() });
 
     Ok(host_infos)
+}
+
+async fn refresh_hosts(inner: Arc<FritzBoxProviderInner>) -> Result<(), Error> {
+    let hosts = get_hosts(&inner.url).await?;
+
+    futures::pin_mut!(hosts);
+    while let Some(host) = hosts.next().await {
+        let mut cached_hosts = inner.cached_hosts.write().await;
+        cached_hosts.insert(host);
+        inner.revision.fetch_add(1, Ordering::SeqCst);
+    }
+
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -199,5 +237,9 @@ impl Provider for FritzBoxProvider {
     async fn get_mac_address(&self, name: &str) -> Result<MacAddress, Error> {
         let hosts = self.get_cached_hosts().await;
         hosts.get(name).cloned().ok_or(Error::UnknownMachine)
+    }
+
+    fn revision(&self) -> u64 {
+        self.inner.revision.load(Ordering::SeqCst)
     }
 }

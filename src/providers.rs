@@ -7,6 +7,9 @@ mod r#static;
 pub trait Provider: Send + Sync {
     async fn list_names(&self) -> Result<Vec<String>, Error>;
     async fn get_mac_address(&self, name: &str) -> Result<MacAddress, Error>;
+    fn revision(&self) -> u64 {
+        0
+    }
 }
 
 // Extension method for provider to get names sorted by name

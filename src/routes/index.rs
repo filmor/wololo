@@ -1,6 +1,6 @@
 use topcoat::{
     context::{app_context, Cx},
-    router::{error::bad_request, page},
+    router::{error::bad_request, page, route},
     view::{component, view},
     Result,
 };
@@ -8,22 +8,22 @@ use topcoat::{
 use crate::{providers::ProviderExt, AppState, Error, MacAddress};
 
 #[page("/")]
-pub(crate) async fn index(cx: &Cx) -> Result {
-    let state = app_context::<AppState>(cx);
-
+pub(crate) async fn index() -> Result {
     view! {
         <div class="pure-g center-column">
             <div class="pure-u-1">
                 <h1>"WoLolo"</h1>
                 <p>"Click the 'Wake' button to send a magic packet to a machine."</p>
             </div>
-            <div class="pure-u-1">table(state: state)</div>
+            <div class="pure-u-1">
+                table()
+            </div>
         </div>
     }
 }
 
 #[component]
-async fn table(state: &AppState) -> Result {
+async fn table() -> Result {
     view! {
         <table class="pure-table pure-table-horizontal pure-table-striped">
             <thead>
@@ -31,17 +31,43 @@ async fn table(state: &AppState) -> Result {
                     <th>"Machine"</th>
                     <th>"MAC Address"</th>
                     <th></th>
-                </tr>
+            </tr>
             </thead>
-            <tbody>
-                for provider in state.providers.iter() {
-                    for name in provider.list_names_sorted().await.map_err(client_error)? {
-                        let mac_address = provider.get_mac_address(&name).await.map_err(client_error)?;
-                        row(name: &name, mac_address: &mac_address)
-                    }
-                }
+            <tbody id="machines">
+                <tr>
+                    <td colspan="3">"Loading machines..."</td>
+                </tr>
             </tbody>
         </table>
+    }
+}
+
+#[route(GET "/machines")]
+pub(crate) async fn machines(cx: &Cx) -> Result {
+    let state = app_context::<AppState>(cx);
+
+    view! {
+        for provider in state.providers.iter() {
+            for name in provider.list_names_sorted().await.map_err(client_error)? {
+                let mac_address = provider.get_mac_address(&name).await.map_err(client_error)?;
+                row(name: &name, mac_address: &mac_address)
+            }
+        }
+    }
+}
+
+#[route(GET "/machines/revision")]
+pub(crate) async fn machines_revision(cx: &Cx) -> Result {
+    let state = app_context::<AppState>(cx);
+    let revision = state
+        .providers
+        .iter()
+        .map(|provider| provider.revision())
+        .max()
+        .unwrap_or(0);
+
+    view! {
+        (revision)
     }
 }
 
