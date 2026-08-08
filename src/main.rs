@@ -9,7 +9,10 @@ use argh::FromArgs;
 use error::Error;
 use mac_address::MacAddress;
 use providers::{FritzBoxProvider, Provider, StaticProvider};
-use tokio::signal;
+use topcoat::{
+    asset::{AssetBundle, RouterBuilderAssetExt},
+    router::Router,
+};
 
 #[derive(FromArgs)]
 /// Wake-On-Lan webservice
@@ -40,15 +43,11 @@ struct AppState {
     providers: Arc<[Box<dyn Provider>]>,
 }
 
-unsafe impl Send for AppState {}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     env_logger::init();
 
     let wololo: Wololo = argh::from_env();
-
-    let bind = format!("{}:{}", wololo.host, wololo.port);
 
     let mut providers: Vec<Box<dyn Provider>> = Vec::new();
 
@@ -68,39 +67,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         providers: providers.into(),
     };
 
-    // build our application with a single route
-    let app = routes::routes(state);
+    let assets = match std::env::var_os("WOLOLO_ASSET_DIR") {
+        Some(directory) => AssetBundle::load_dir(directory)?,
+        None => AssetBundle::load()?,
+    };
 
-    log::info!("Listening on: {}", bind);
-    let listener = tokio::net::TcpListener::bind(&bind).await?;
+    let app = Router::builder()
+        .app_context(state)
+        .assets(assets)
+        .page(routes::index::index)
+        .page(routes::wake::wake)
+        .layout(routes::util::base)
+        .build();
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    // Keep the existing command-line interface while using Topcoat's server.
+    std::env::set_var("HOST", wololo.host);
+    std::env::set_var("PORT", wololo.port.to_string());
+    topcoat::start(app).await?;
 
     Ok(())
-}
-
-async fn shutdown_signal() {
-    let ctrl_c = async {
-        signal::ctrl_c()
-            .await
-            .expect("failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {},
-        _ = terminate => {},
-    }
 }

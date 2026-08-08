@@ -22,6 +22,5 @@ impl<T: Provider + ?Sized> ProviderExt for T {
     }
 }
 
-
 pub use fritzbox::FritzBoxProvider;
 pub use r#static::StaticProvider;

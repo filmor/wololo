@@ -1,20 +1,21 @@
-use maud::{html, Markup, Render};
+use topcoat::{asset::asset, router::layout, view::view, Result};
 
-pub struct Base;
+const PURE_CSS: topcoat::asset::Asset = asset!("assets/pure-min.css");
 
-impl Render for Base {
-    fn render(&self) -> Markup {
-        html! {
-            link rel="stylesheet" type="text/css" href="/assets/pure-min.css";
-            style {
-                r#"
-                .center-column {
-                    max-width: 600px; /* Adjust the max-width as needed */
-                    margin: 0 auto; /* Center horizontally */
-                    padding: 20px;
-                }
-                "#
-            }
-        }
+#[layout("/")]
+pub(crate) async fn base(slot: Result) -> Result {
+    view! {
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta charset="utf-8">
+                <title>"WoLolo"</title>
+                <link rel="stylesheet" type="text/css" href=(PURE_CSS)>
+                <style>
+                    ".center-column { max-width: 600px; margin: 0 auto; padding: 20px; }"
+                </style>
+            </head>
+            <body>(slot?)</body>
+        </html>
     }
 }

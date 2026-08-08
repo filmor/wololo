@@ -1,9 +1,3 @@
-use axum::{
-    body::Body,
-    http::{Response, StatusCode},
-    response::IntoResponse,
-};
-
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("invalid mac address")]
@@ -32,13 +26,4 @@ pub enum Error {
 
     #[error("failed to parse host info: {0}")]
     Xml(#[from] quick_xml::DeError),
-}
-
-impl IntoResponse for Error {
-    fn into_response(self) -> Response<Body> {
-        Response::builder()
-            .status(StatusCode::BAD_REQUEST)
-            .body(self.to_string().into())
-            .unwrap()
-    }
 }
